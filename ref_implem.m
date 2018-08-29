@@ -4,7 +4,7 @@ close all;
 
 % Parameters for simulation
 
-NFFT = 2^12;% Used for displying frequency domain stats
+NFFT = 2^10;% Used for displying frequency domain stats
 Fs = 200e6;% Used during simulation of up and down conversion
 F = linspace(-1,1,NFFT)*Fs/2;% Used for displying frequency domain stats
 rate = Fs/2; % Sampling rate used for simulation
@@ -41,14 +41,18 @@ tx_buf = 0;
 spread_factor = num_samps; % Decides spread factor
 qpsk_nsamps = ceil(num_samps/spread_factor);
 % Generating 10 symbols and spreading them according to spread factor
-for i = 1:10
-X_Input = randi([0 3],qpsk_nsamps,1);
-QPSKModulatorObject = comm.QPSKModulator('BitInput',false);
-QPSKOutput(i) = step(QPSKModulatorObject,X_Input);
-QPSKOutput_spread = reshape(transpose(repmat(QPSKOutput(i),1,spread_factor)),num_samps,1);
-
-% Multiplication of PN and QPSK
-Y((i-1)*num_samps+1:i*num_samps) = PN_Seq .* QPSKOutput_spread;
+for i = 1:100
+    if i == 1
+        QPSKOutput(i) = 1;
+        QPSKOutput_spread = reshape(transpose(repmat(QPSKOutput(i),1,spread_factor)),num_samps,1);
+    else
+        X_Input = randi([0 3],qpsk_nsamps,1);
+        QPSKModulatorObject = comm.QPSKModulator('BitInput',false);
+        QPSKOutput(i) = step(QPSKModulatorObject,X_Input);
+        QPSKOutput_spread = reshape(transpose(repmat(QPSKOutput(i),1,spread_factor)),num_samps,1);
+    end
+    % Multiplication of PN and QPSK
+    Y((i-1)*num_samps+1:i*num_samps) = PN_Seq .* QPSKOutput_spread;
 end
 
 t_data = (0:length(Y)-1)/rate;
@@ -81,8 +85,24 @@ t_rct = (0:length(y_rct)*sampsPerSym-1)/Fs;
 
 % Passing signal through channel
 chan = ricianchan(1/Fs,0,[rand(1,1),rand(1,1),rand(1,1),rand(1,1),rand(1,1)],[0,10e-9*randi([1 10]),20e-9*randi([1 10]),30e-9*randi([1 10]),40e-9*randi([1 10])],[1,1,1,1,1]);
-y_filt = filter(chan,y_rct);
 
+%%%% If MIMO channel is to be used %%%%
+h = comm.MIMOChannel;
+h.SampleRate = rate;
+h.SpatialCorrelation = false; % Independent channels
+h.NumTransmitAntennas = 1;
+h.NumReceiveAntennas = 1;
+h.FadingDistribution = 'Rayleigh';
+% h.DirectPathDopplerShift = Doppshift;
+% h.MaximumDopplerShift = Doppshift;
+% h.KFactor = 5;
+h.PathDelays = [0,1,2,3]*10e-9; 
+h.NormalizePathGains = false;
+h.AveragePathGains = [0,-0.9,-4.9,-8];
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% y_filt = filter(chan,y_rct);
+y_filt = step(h,y_rct);
 
 % Plotting frequency characteristics of the up-converted signal passed
 % through the channel.
@@ -112,21 +132,61 @@ rcrFilt = comm.RaisedCosineReceiveFilter(...
 y_rcr = rcrFilt([y_filt]);
 
 % Adding noise
-y_rcr = awgn(y_rcr,-10);
+y_rcr = awgn(y_rcr,6);
 
 % -----------------------------------------------------------------------
 
 %------------ Correlating with PN sequence at receiver ------------
 iter = 0;
+thres_iter = 0; thres_flag = 1;
 while iter <= length(Y)-length(PN_Seq)
     temp = transpose(y_rcr(1+iter:iter+length(PN_Seq)))*PN_Seq;
-    out(iter+1) = temp/length(PN_Seq);
+    out(iter+1) = temp/(PN_Seq'*PN_Seq);
+    if abs(out(iter+1)) > 0.3 && thres_flag == 1
+        thres_iter = iter+1;
+        thres_flag = 0;
+    end
     iter = iter+1;
 % pause(0.1);
 end
 figure;
-plot(abs(out));
+plot(abs(out(Nsym:end)));
 title('Complex correlation at receiver');
 % 
 % pause(1);
 % end
+
+% -----------------------------------------------------------------------
+
+
+
+% Finding received signal
+
+chan_est = transpose(out(1:1023));
+
+thres = 0.2;
+
+for i = 1:length(chan_est)
+    if abs(chan_est(i)) < thres
+        chan_est(i) = 0;
+    end
+end
+
+chan_est_thres = chan_est(find(abs(chan_est)>=thres));
+chan_est_thres_delay = find(abs(chan_est)>=thres);
+
+figure; plot(abs(chan_est));
+
+y_reshaped = reshape(y_rcr(length(PN_Seq)+1:end),spread_factor,99);
+to_be_decoded = y_rcr(spread_factor+1:end);
+for i = 1:size(y_reshaped,2)
+    Y_f = fft(y_reshaped(:,i))./fft(chan_est,size(y_reshaped,1));
+    y_copy = zeros(spread_factor,length(chan_est_thres_delay));
+    for j = 1:length(chan_est_thres_delay)
+        y_copy(1:end-chan_est_thres_delay(j)+1,j) = conj(chan_est_thres(j))*y_reshaped(chan_est_thres_delay(j):end,i);
+    end
+    Y_t = sum(y_copy,2)./sum(abs(chan_est_thres).^2);
+    Y_final(i) = (PN_Seq'*Y_t)/length(PN_Seq);
+end
+scatterplot(QPSKOutput);
+scatterplot(Y_final);
