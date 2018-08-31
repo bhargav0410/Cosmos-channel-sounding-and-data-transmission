@@ -178,9 +178,10 @@ for z = 1:length(PN_SEQ_LENGTHS)
     ber_values(z,:) = ber_values_for_pn;
 end
 
+dlmwrite('BER_DIFF_PN_LENGTHS.txt',ber_values);
 [X,Y] = meshgrid(1:1:length(PN_SEQ_LENGTHS), -20:1:20);
-surf(X, Y, transpose(ber_values));
-xticklabels(PN_SEQ_LENGTHS);
+surf(Y, X, transpose(ber_values));
+yticklabels(PN_SEQ_LENGTHS);
 savefig('BER_DIFF_PN_LENGTHS.fig');
 
 
