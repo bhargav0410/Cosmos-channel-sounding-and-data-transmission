@@ -132,7 +132,7 @@ rcrFilt = comm.RaisedCosineReceiveFilter(...
 y_rcr = rcrFilt([y_filt]);
 
 % Adding noise
-y_rcr = awgn(y_rcr,6);
+y_rcr = awgn(y_rcr,5);
 
 % -----------------------------------------------------------------------
 
@@ -180,7 +180,7 @@ figure; plot(abs(chan_est));
 y_reshaped = reshape(y_rcr(length(PN_Seq)+1:end),spread_factor,99);
 to_be_decoded = y_rcr(spread_factor+1:end);
 for i = 1:size(y_reshaped,2)
-    Y_f = fft(y_reshaped(:,i))./fft(chan_est,size(y_reshaped,1));
+%     Y_f = fft(y_reshaped(:,i))./fft(chan_est,size(y_reshaped,1));
     y_copy = zeros(spread_factor,length(chan_est_thres_delay));
     for j = 1:length(chan_est_thres_delay)
         y_copy(1:end-chan_est_thres_delay(j)+1,j) = conj(chan_est_thres(j))*y_reshaped(chan_est_thres_delay(j):end,i);

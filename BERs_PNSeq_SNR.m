@@ -13,7 +13,7 @@ UPSAMPLING_FACTOR = FS / RATE;
 DOWNSAMPLING_FACTOR = FS / RATE; 
 DECIMATION_FACTOR = FS / RATE;
 
-NUMBER_OF_SYMBOLS = 1e5;
+NUMBER_OF_SYMBOLS = 1000;
 NUMBER_OF_REF_SYMBOLS = 1;
 
 
@@ -61,6 +61,11 @@ h.PathDelays = [0,1,2,3]*10e-9;
 h.NormalizePathGains = false;
 h.AveragePathGains = [0,-0.9,-4.9,-8];
 
+
+% --------------- QPSK Data generation ----------------------------------
+X_Input = randi([0 3],NUMBER_OF_SYMBOLS,1);
+QPSKOutput = qammod(X_Input, 4);
+
 for z = 1:length(PN_SEQ_LENGTHS)
     
     PN_SEQ_LEN = PN_SEQ_LENGTHS(z); % PN Sequence length 
@@ -86,36 +91,31 @@ for z = 1:length(PN_SEQ_LENGTHS)
     
     % -----------------------------------------------------------------------
     
-    % --------------- QPSK Data generation ----------------------------------
-    % The code below generates QPSK sequence and then spreads the sequence
-    % according to the required spread factor.
-    % Here, spread_factor = chip rate/sampling rate, where, sampling rate is
-    % the rate of actual transmission and chip rate is the rate of PN sequence.
-    % Spread factor is the number of PN sequence bits to be XORed with the input
-    % QAM sample.
     
-    SPREAD_FACTOR = PN_SEQ_LEN; % Decides spread factor
-    nsamps_QPSK = ceil(PN_SEQ_LEN/SPREAD_FACTOR);
-    
-    % Generating QPSK symbols and spreading them according to spread factor
-    for i = 1:NUMBER_OF_SYMBOLS
-        if i <= NUMBER_OF_REF_SYMBOLS
-            QPSKOutput(i) = 1;
-            QPSKOutput_spread = reshape(transpose(repmat(QPSKOutput(i),1,SPREAD_FACTOR)),PN_SEQ_LEN,1);
-        else
-            X_Input(i-1) = randi([0 3],nsamps_QPSK,1);
-            QPSKModulatorObject = comm.QPSKModulator('BitInput',false);
-            % QPSKOutput(i) = step(QPSKModulatorObject,X_Input(i-1));
-            QPSKOutput(i) = qammod(X_Input(i-1), 4);
-            QPSKOutput_spread = reshape(transpose(repmat(QPSKOutput(i),1,SPREAD_FACTOR)),PN_SEQ_LEN,1);
-        end
-        % Multiplication of PN and QPSK
-        Y((i-1)*PN_SEQ_LEN+1:i*PN_SEQ_LEN) = PN_Seq .* QPSKOutput_spread;
+    SPREAD_FACTOR = ceil(PN_SEQ_LEN/2); % Decides spread factor
+    % Decides the number of zeros to be added at the end of packet since
+    % the PN sequence langth and the spreaded symbol length does not always
+    % match
+    if mod(NUMBER_OF_SYMBOLS*SPREAD_FACTOR,PN_SEQ_LEN) == 0
+        TAIL_ZEROS = 0;
+    else
+        TAIL_ZEROS = PN_SEQ_LEN - mod(NUMBER_OF_SYMBOLS*SPREAD_FACTOR,PN_SEQ_LEN);
     end
+    % Spreading QPSK symbols according to spread factor
+        % Multiplication of PN and QPSK
+        
+        ChanEstOutput(1:NUMBER_OF_REF_SYMBOLS) = 1;
+        ChanEst_spread = repmat(ChanEstOutput,PN_SEQ_LEN,1);
+        QPSKOutput_spread = repmat(QPSKOutput,1,SPREAD_FACTOR);
+        QPSKOutput_spread = transpose(QPSKOutput_spread);
+        QPSKOutput_spread = [QPSKOutput_spread(:);zeros(TAIL_ZEROS,1)];
+
+        Y = repmat(PN_Seq,length(QPSKOutput_spread)/PN_SEQ_LEN + NUMBER_OF_REF_SYMBOLS,1) .* [ChanEst_spread;QPSKOutput_spread];
+%     end
     
     t_data = (0:length(Y)-1)/RATE;
  
-    y_rct = rctFilt([transpose(Y)]);
+    y_rct = rctFilt(Y);
     t_rct = (0:length(y_rct)*UPSAMPLING_FACTOR-1)/FS;
     
     ber_values_for_pn = [];
@@ -147,26 +147,29 @@ for z = 1:length(PN_SEQ_LENGTHS)
         
         chan_est = transpose(out(1:PN_SEQ_LEN));
         
-        THRESHOLD_FOR_CORR_PEAKS = 0.25;
+        THRESHOLD_FOR_CORR_PEAKS = 0.5;
         
         for i = 1:length(chan_est)
             if abs(chan_est(i)) < THRESHOLD_FOR_CORR_PEAKS
                 chan_est(i) = 0;
             end
         end
-        
-        chan_est_thres = chan_est(find(abs(chan_est)>=THRESHOLD_FOR_CORR_PEAKS));
         chan_est_thres_delay = find(abs(chan_est)>=THRESHOLD_FOR_CORR_PEAKS);
+        chan_est_thres = chan_est(chan_est_thres_delay);
         
-        y_reshaped = reshape(y_rcr_noise(length(PN_Seq)+1:end),SPREAD_FACTOR,NUMBER_OF_SYMBOLS-1);
-        for i = 1:size(y_reshaped,2)
-            y_copy = zeros(SPREAD_FACTOR,length(chan_est_thres_delay));
+%         y_reshaped = reshape(y_rcr_noise(length(PN_Seq)+1:end),SPREAD_FACTOR,NUMBER_OF_SYMBOLS-1);
+        y_mod_data = y_rcr_noise(PN_SEQ_LEN*NUMBER_OF_REF_SYMBOLS+1:end);
+%         y_mod_data_reshape = reshape()
+%         for i = 1:size(y_reshaped,2)
+            y_copy = zeros(length(y_mod_data),length(chan_est_thres_delay));
             for j = 1:length(chan_est_thres_delay)
-                y_copy(1:end-chan_est_thres_delay(j)+1,j) = conj(chan_est_thres(j))*y_reshaped(chan_est_thres_delay(j):end,i);
+                y_copy(1:end+(-chan_est_thres_delay(j)+1),j) = conj(chan_est_thres(j))*y_mod_data(chan_est_thres_delay(j):end);
             end
             Y_t = sum(y_copy,2)./sum(abs(chan_est_thres).^2);
-            Y_final(i) = (PN_Seq'*Y_t)/length(PN_Seq);
-        end
+            y_pn_mult = (repmat(PN_Seq,length(QPSKOutput_spread)/PN_SEQ_LEN,1).*Y_t);
+            y_reshaped = transpose(reshape(y_pn_mult(1:end-TAIL_ZEROS),SPREAD_FACTOR,NUMBER_OF_SYMBOLS));
+            Y_final = sum(y_reshaped,2)/SPREAD_FACTOR;
+%         end
 %         scatterplot(QPSKOutput);
 %         scatterplot(Y_final);
         
@@ -178,10 +181,10 @@ for z = 1:length(PN_SEQ_LENGTHS)
     ber_values(z,:) = ber_values_for_pn;
 end
 
-dlmwrite('BER_DIFF_PN_LENGTHS.txt',ber_values);
+% dlmwrite('BER_DIFF_PN_LENGTHS.txt',ber_values);
 [X,Y] = meshgrid(1:1:length(PN_SEQ_LENGTHS), -20:1:20);
 surf(Y, X, transpose(ber_values));
 yticklabels(PN_SEQ_LENGTHS);
-savefig('BER_DIFF_PN_LENGTHS.fig');
+% savefig('BER_DIFF_PN_LENGTHS.fig');
 
 
