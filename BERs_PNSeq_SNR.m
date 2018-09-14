@@ -45,7 +45,7 @@ rcrFilt = comm.RaisedCosineReceiveFilter(...
 % The code below generates PN Sequence using Linear Feedback Shift Register
 % method. 
 
-PN_SEQ_LENGTHS = [15, 31, 63, 127, 255];
+PN_SEQ_LENGTHS = [63];
 
 SNR_VALUES = -20:1:20; 
 
@@ -92,10 +92,12 @@ for z = 1:length(PN_SEQ_LENGTHS)
     % -----------------------------------------------------------------------
     
     
-    SPREAD_FACTOR = ceil(PN_SEQ_LEN/2); % Decides spread factor
+    SPREAD_FACTOR = 1; % Decides spread factor
     % Decides the number of zeros to be added at the end of packet since
     % the PN sequence langth and the spreaded symbol length does not always
     % match
+    while SPREAD_FACTOR <= PN_SEQ_LEN
+    
     if mod(NUMBER_OF_SYMBOLS*SPREAD_FACTOR,PN_SEQ_LEN) == 0
         TAIL_ZEROS = 0;
     else
@@ -177,14 +179,17 @@ for z = 1:length(PN_SEQ_LENGTHS)
         ber = sum(output_symbols ~= X_Input) / length(X_Input);
         
         ber_values_for_pn = [ber_values_for_pn ber];
-    end  
-    ber_values(z,:) = ber_values_for_pn;
+    end
+    SPREAD_FACTOR = SPREAD_FACTOR*2;
+    ber_values(log2(SPREAD_FACTOR),:) = ber_values_for_pn;
+    end
 end
 
 % dlmwrite('BER_DIFF_PN_LENGTHS.txt',ber_values);
-[X,Y] = meshgrid(1:1:length(PN_SEQ_LENGTHS), -20:1:20);
+[X,Y] = meshgrid((0:1:(log2(SPREAD_FACTOR)-1)), -20:1:20);
 surf(Y, X, transpose(ber_values));
-yticklabels(PN_SEQ_LENGTHS);
+ylabel('log(Spread_factor)');
+% yticklabels(2.^(0:1:(log2(SPREAD_FACTOR)-1)));
 % savefig('BER_DIFF_PN_LENGTHS.fig');
 
 
