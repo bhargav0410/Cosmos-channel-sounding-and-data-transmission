@@ -84,9 +84,23 @@ public:
 
     //Function to correlate with input PN sequence matrix 
     void correlate_with_pn_seq(std::vector<std::vector<std::complex<float>>> &input_from_radio, std::vector<std::vector<std::vector<std::complex<float>>>> out_array_cpu) {
+        
+        //Allocating memory for receiving array in GPU
+        if (rx_alloc == 0) {
+            cudaMalloc((void **)rx_array, 2*(pn_length - 1) + input_from_radio[0].size()*num_rx_ants*sizeof(*rx_array));
+            rx_length = 2*(pn_length - 1) + input_from_radio[0].size()*num_rx_ants*sizeof(*rx_array);
+            cudaMemset((void *)rx_array, 0, (pn_length - 1)*sizeof(*rx_array));
+            cudaMemset((void *)&rx_array[rx_length - pn_length + 1], 0, (pn_length - 1)*sizeof(*rx_array));
+            rx_alloc = 1;
+        }
+        //Allocating memory to output array
+        if (out_alloc == 0) {
+            cudaMalloc((void **)out_array, (input_from_radio[0].size() + pn_length - 1)*num_rx_ants*num_tx_seqs*sizeof(*out_array));
+        }
+        
         //Allocating thread blocks in GPU for processing
         if (threads_alloc == 0) {
-            rx_length = input_from_radio[0].size();
+            //rx_length = input_from_radio[0].size();
             num_rx_ants = (int)input_from_radio.size();
             cudaDeviceProp devProp;
             cudaGetDeviceProperties(&devProp, 0);
@@ -114,18 +128,7 @@ public:
             block_z = num_rx_ants;
         }
         dim3 blockDims(thread_x, 1), gridDims(block_x, block_y, block_z);
-        //Allocating memory for receiving array in GPU
-        if (rx_alloc == 0) {
-            cudaMalloc((void **)rx_array, 2*(pn_length - 1) + input_from_radio[0].size()*num_rx_ants*sizeof(*rx_array));
-            rx_length = 2*(pn_length - 1) + input_from_radio[0].size()*num_rx_ants*sizeof(*rx_array);
-            cudaMemset((void *)rx_array, 0, (pn_length - 1)*sizeof(*rx_array));
-            cudaMemset((void *)&rx_array[rx_length - pn_length + 1], 0, (pn_length - 1)*sizeof(*rx_array));
-            rx_alloc = 1;
-        }
-        //Allocating memory to output array
-        if (out_alloc == 0) {
-            cudaMalloc((void **)out_array, (input_from_radio[0].size() + pn_length - 1)*num_rx_ants*num_tx_seqs*sizeof(*out_array));
-        }
+        
         //Copying received signal to GPU
         for (int i = 0; i < input_from_radio.size(); i++) {
             cudaMemcpy((void *)&rx_array[(int)input_from_radio[0].size()*i + pn_length - 1], (void *)&input_from_radio[i][0], input_from_radio[0].size()*sizeof(*tx_array), cudaMemcpyHostToDevice);
@@ -142,6 +145,25 @@ public:
         }
 
 
+    }
+
+    //Function to set parameters such as threshold, number of pn sequences, PN sequence length, etc.
+    void set_params(int _pn_length = 0, int _num_tx_seqs = 0, int _num_rx_ants = 0, int _thres = 0, int _rx_length = 0) {
+        if (_pn_length > 0) {
+            pn_length = _pn_length;
+        }
+        if (_num_tx_seqs > 0) {
+            num_tx_seqs = _num_tx_seqs;
+        }
+        if (_num_rx_ants > 0) {
+            num_rx_ants = _num_rx_ants;
+        }
+        if (_thres > 0) {
+            thres = _thres;
+        }
+        if (_rx_length > 0) {
+            rx_length = _rx_length;
+        }
     }
 
 protected:
