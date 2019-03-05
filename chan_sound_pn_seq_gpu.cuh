@@ -10,9 +10,10 @@
 #include <complex>
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 //GPU function to correlate with a PN sequence
-__global__ void correlate(float *tx_array, float *rx_array, float *out_array, int thres, int num_rx_ants, int pn_len, int rx_arr_len_per_ant) {
+__global__ void correlate(cuFloatComplex *tx_array, cuFloatComplex *rx_array, cuFloatComplex *out_array, int thres, int num_rx_ants, int pn_len, int rx_arr_len_per_ant) {
 
     extern __shared__ cuFloatComplex temp[];
 
@@ -24,7 +25,7 @@ __global__ void correlate(float *tx_array, float *rx_array, float *out_array, in
 
     //Array reduction of data present in shared memory
     for (int i = 1; i < blockDim.x; i = i*2) {
-        if (threadIdx.x % (2*i) == 0 && (threadIdx.x+i < blockDim.x)) {
+        if (threadIdx.x % (2*i) == 0 && (threadIdx.x + i < blockDim.x)) {
             temp[i] = cuCaddf(temp[threadIdx.x], temp[threadIdx.x + i]);
         }
         __syncthreads();
@@ -52,15 +53,15 @@ public:
 
     ~chan_sound_pn_seq_gpu() {
         if (tx_alloc > 0) {
-            free(tx_array);
+            cudaFree(tx_array);
             tx_alloc = 0;
         }
         if (rx_alloc > 0) {
-            free(rx_array);
+            cudaFree(rx_array);
             rx_alloc = 0;
         }
         if (out_alloc > 0) {
-            free(out_array);
+            cudaFree(out_array);
             out_alloc = 0;
         }
     }
@@ -75,7 +76,7 @@ public:
         std::ifstream infile(file.c_str(), std::ifstream::binary);
         float *temp_arr;
         temp_arr = (float *)malloc(2*pn_length*num_tx_seqs*sizeof(*temp_arr));
-        infile.read(temp_arr, 2*pn_length*num_tx_seqs*sizeof(*temp_arr));
+        infile.read((char *)temp_arr, 2*pn_length*num_tx_seqs*sizeof(*temp_arr));
         //Copying to GPU
         cudaMemcpy((void *)tx_array, (void *)temp_arr, pn_length*num_tx_seqs*sizeof(*tx_array), cudaMemcpyHostToDevice);
         //Freeing temporary array
@@ -83,7 +84,7 @@ public:
     }
 
     //Function to correlate with input PN sequence matrix 
-    void correlate_with_pn_seq(std::vector<std::vector<std::complex<float>>> &input_from_radio, std::vector<std::vector<std::vector<std::complex<float>>>> out_array_cpu) {
+    void correlate_with_pn_seq(std::vector<std::vector<std::complex<float>>> &input_from_radio, std::vector<std::vector<std::vector<std::complex<float>>>> &out_array_cpu) {
         
         //Allocating memory for receiving array in GPU
         if (rx_alloc == 0) {
@@ -97,14 +98,15 @@ public:
         if (out_alloc == 0) {
             cudaMalloc((void **)out_array, (input_from_radio[0].size() + pn_length - 1)*num_rx_ants*num_tx_seqs*sizeof(*out_array));
         }
-        
+
+        int threads_per_block;
         //Allocating thread blocks in GPU for processing
         if (threads_alloc == 0) {
             //rx_length = input_from_radio[0].size();
             num_rx_ants = (int)input_from_radio.size();
             cudaDeviceProp devProp;
             cudaGetDeviceProperties(&devProp, 0);
-            int threads_per_block  = devProp.maxThreadsPerBlock;
+            threads_per_block  = devProp.maxThreadsPerBlock;
             //X dimension of threads
             thread_x = std::min(threads_per_block, pn_length);
             //Y dimension of threads is used if length of PN sequence is smaller than number of threads per block
@@ -144,6 +146,15 @@ public:
             correlate <<<gridDims, blockDims, std::min(threads_per_block, pn_length)*sizeof(*rx_array), stream[tx_stream]>>> (tx_array, rx_array, &out_array[(input_from_radio[0].size() + pn_length - 1)*num_rx_ants*tx_stream], thres, num_rx_ants, pn_length, rx_length);
         }
 
+        //Copy to output array in CPU
+        out_array_cpu.resize(num_tx_seqs);
+        for (int tx = 0; tx < num_tx_seqs; tx++) {
+            out_array_cpu[tx].resize(num_rx_ants);
+            for (int rx = 0; rx < num_rx_ants; rx++) {
+                out_array_cpu[tx][rx].resize((input_from_radio[0].size() + pn_length - 1));
+                cudaMemcpy((void *)&out_array_cpu[tx][rx][0], (void *)&out_array[(input_from_radio[0].size() + pn_length - 1)*rx*tx], (input_from_radio[0].size() + pn_length - 1)*sizeof(*out_array), cudaMemcpyDeviceToHost);
+            }
+        }
 
     }
 
@@ -158,9 +169,7 @@ public:
         if (_num_rx_ants > 0) {
             num_rx_ants = _num_rx_ants;
         }
-        if (_thres > 0) {
-            thres = _thres;
-        }
+        thres = _thres;
         if (_rx_length > 0) {
             rx_length = _rx_length;
         }
