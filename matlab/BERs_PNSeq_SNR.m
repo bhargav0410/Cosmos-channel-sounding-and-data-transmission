@@ -45,7 +45,7 @@ rcrFilt = comm.RaisedCosineReceiveFilter(...
 % The code below generates PN Sequence using Linear Feedback Shift Register
 % method. 
 
-PN_SEQ_LENGTHS = [63];
+PN_SEQ_LENGTHS = [255];
 
 SNR_VALUES = -20:1:20; 
 
@@ -63,8 +63,8 @@ h.AveragePathGains = [0,-0.9,-4.9,-8];
 
 
 % --------------- QPSK Data generation ----------------------------------
-X_Input = randi([0 3],NUMBER_OF_SYMBOLS,1);
-QPSKOutput = qammod(X_Input, 4);
+X_Input = randi([0 1],NUMBER_OF_SYMBOLS,1);
+QPSKOutput = qammod(X_Input, 2);
 
 for z = 1:length(PN_SEQ_LENGTHS)
     
@@ -149,7 +149,7 @@ for z = 1:length(PN_SEQ_LENGTHS)
         
         chan_est = transpose(out(1:PN_SEQ_LEN));
         
-        THRESHOLD_FOR_CORR_PEAKS = 0.5;
+        THRESHOLD_FOR_CORR_PEAKS = 0.1;
         
         for i = 1:length(chan_est)
             if abs(chan_est(i)) < THRESHOLD_FOR_CORR_PEAKS
@@ -174,9 +174,12 @@ for z = 1:length(PN_SEQ_LENGTHS)
 %         end
 %         scatterplot(QPSKOutput);
 %         scatterplot(Y_final);
-        
-        output_symbols = qamdemod(Y_final, 4);
-        ber = sum(output_symbols ~= X_Input) / length(X_Input);
+        if isnan(Y_final) == 0
+            output_symbols = qamdemod(Y_final, 2);
+            ber = sum(output_symbols ~= X_Input) / length(X_Input);
+        else
+            ber = 1;
+        end
         
         ber_values_for_pn = [ber_values_for_pn ber];
     end
@@ -188,7 +191,8 @@ end
 % dlmwrite('BER_DIFF_PN_LENGTHS.txt',ber_values);
 [X,Y] = meshgrid((0:1:(log2(SPREAD_FACTOR)-1)), -20:1:20);
 surf(Y, X, transpose(ber_values));
-ylabel('log(Spread_factor)');
+axis([0 6 0 1]);
+ylabel('log(SpreadFactor)');
 % yticklabels(2.^(0:1:(log2(SPREAD_FACTOR)-1)));
 % savefig('BER_DIFF_PN_LENGTHS.fig');
 

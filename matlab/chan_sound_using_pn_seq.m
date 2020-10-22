@@ -13,7 +13,7 @@ rate = Fs/2; % Sampling rate used for simulation
 
 num_samps = 1023; % PN Sequence length
 init = randi(2,1,10) - 1; % Initial values for the register 
-while init == 0
+while sum(init) == 0
     init = randi(2,1,10) - 1;
 end
 poly = [10 7 0]; % Seed polynoimal

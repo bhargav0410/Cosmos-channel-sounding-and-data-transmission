@@ -38,7 +38,7 @@ tx_buf = 0;
 % Spread factor is the number of PN sequence bits to be XORed with the input
 % QAM sample.
 
-spread_factor = num_samps; % Decides spread factor
+spread_factor = 1;%num_samps; % Decides spread factor
 qpsk_nsamps = ceil(num_samps/spread_factor);
 % Generating 10 symbols and spreading them according to spread factor
 for i = 1:100
