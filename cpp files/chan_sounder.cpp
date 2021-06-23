@@ -1,7 +1,7 @@
 #include "chan_sounder.h"
 
 //Distributed the tasks amongst workers with as much fairness as possible
-inline void load_balancing_mpi(int *size_of_proc_data, int *displ, int num_procs, int len) {
+void load_balancing_mpi(int *size_of_proc_data, int *displ, int num_procs, int len) {
     int displ_of_proc = 0;
     for (int i = 0; i < num_procs; i++) {
         displ[i] = displ_of_proc;
@@ -14,7 +14,7 @@ inline void load_balancing_mpi(int *size_of_proc_data, int *displ, int num_procs
 }
 
 //Generates PN sequence of 1 and -1 using LFSR based on polynomial given
-inline std::vector<int> pn_seq_gen(std::vector<int> polynomial, int length) {
+std::vector<int> pn_seq_gen(std::vector<int> polynomial, int length) {
     std::vector<int> start_state(polynomial.size()-1, 0), output(length);
     start_state[0] = 1;
     int temp_bit;
@@ -41,7 +41,7 @@ inline std::vector<int> pn_seq_gen(std::vector<int> polynomial, int length) {
 }
 
 //Generates a zadoff-chu sequence of specific length
-inline std::vector<std::complex<float>> zadoff_chu_gen(int length) {
+std::vector<std::complex<float>> zadoff_chu_gen(int length) {
     std::vector<std::complex<float>> out(length);
 
     for (int i = 0; i < length; i++) {
@@ -51,7 +51,7 @@ inline std::vector<std::complex<float>> zadoff_chu_gen(int length) {
 }
 
 //Performs linear cross-correlation with a PN sequence to find PN sequence peaks in the received sequence and returns the index at which PN sequence starts
-inline int find_pn_seq(std::complex<float> *in_seq, int *pn_seq, int in_size, int pn_size, float thres, int threads) {
+int find_pn_seq(std::complex<float> *in_seq, int *pn_seq, int in_size, int pn_size, float thres, int threads) {
     if (in_size < pn_size) {
         std::cout << "Correlation not possible...\n";
     }
@@ -79,7 +79,7 @@ inline int find_pn_seq(std::complex<float> *in_seq, int *pn_seq, int in_size, in
     return -1;
 }
 
-inline int find_pn_seq_avx(std::complex<float> *in_seq, int *pn_seq, int in_size, int pn_size, float thres) {
+int find_pn_seq_avx(std::complex<float> *in_seq, int *pn_seq, int in_size, int pn_size, float thres) {
     if (in_size < pn_size) {
         std::cout << "Correlation not possible...\n";
     }
@@ -138,7 +138,7 @@ inline int find_pn_seq_avx(std::complex<float> *in_seq, int *pn_seq, int in_size
 }
 
 //FFT without any library
-inline void win_fft(std::complex<float> *fft_in, std::complex<float> *fft_out, int fft_size, int flag) {
+void win_fft(std::complex<float> *fft_in, std::complex<float> *fft_out, int fft_size, int flag) {
     if (fft_size == 1) {
         fft_out[0] = fft_in[0];
     } else {
@@ -159,7 +159,7 @@ inline void win_fft(std::complex<float> *fft_in, std::complex<float> *fft_out, i
 }
 
 //FFT of one row
-inline void single_thread_fft(std::complex<float> *fft_in, std::complex<float> *fft_out, int fft_size) {
+void single_thread_fft(std::complex<float> *fft_in, std::complex<float> *fft_out, int fft_size) {
     //Setting up plan to execute
     //fftwf_plan plan;
     //plan = fftwf_plan_dft_1d(fft_size, (fftwf_complex *)fft_in, (fftwf_complex *)fft_out, FFTW_FORWARD, /*FFTW_MEASURE*/ FFTW_ESTIMATE);
@@ -175,7 +175,7 @@ inline void single_thread_fft(std::complex<float> *fft_in, std::complex<float> *
 }
 
 //IFFT of one row
-inline void single_thread_ifft(std::complex<float> *fft_in, std::complex<float> *fft_out, int fft_size) {
+void single_thread_ifft(std::complex<float> *fft_in, std::complex<float> *fft_out, int fft_size) {
     //Setting up plan to execute
     //fftwf_plan plan;
     //plan = fftwf_plan_dft_1d(fft_size, (fftwf_complex *)fft_in, (fftwf_complex *)fft_out, FFTW_BACKWARD, /*FFTW_MEASURE*/ FFTW_ESTIMATE);
@@ -191,7 +191,7 @@ inline void single_thread_ifft(std::complex<float> *fft_in, std::complex<float> 
 }
 
 /*Averages multiple vectors into one vector*/
-inline void vector_averaging(std::complex<float> *input, std::complex<float> *output, int num_vectors, int vector_len) {
+void vector_averaging(std::complex<float> *input, std::complex<float> *output, int num_vectors, int vector_len) {
 
     //std::complex<float> *temp;
     //temp = (std::complex<float> *)malloc((size_t)(vector_len * sizeof(std::complex<float>)));
@@ -212,7 +212,7 @@ inline void vector_averaging(std::complex<float> *input, std::complex<float> *ou
 }
 
 //Swaps the [0:FFTsize/2-1] and [-FFTsize/2:FFTsize-1] halves of OFDM symbols and stores in same vector
-inline void swap_halves(std::complex<float> *vec, int fft_size) {
+void swap_halves(std::complex<float> *vec, int fft_size) {
     std::vector<std::complex<float>> temp((int)ceil((float)fft_size/(float)2));
     for (int i = 0; i < fft_size/2; i++) {
         temp[i] = vec[i];
@@ -221,15 +221,35 @@ inline void swap_halves(std::complex<float> *vec, int fft_size) {
     }
 }
 
+//Dividing 8-16 elements at same time
+inline void divide_8_elems(std::complex<float> *in1, std::complex<float> *in2, std::complex<float> *out) {
+    for (int i = 0; i < 8; i++) {
+        out[i] = in1[i]/in2[i];
+    }
+}
+
+inline void divide_16_elems(std::complex<float> *in1, std::complex<float> *in2, std::complex<float> *out) {
+    for (int i = 0; i < 16; i++) {
+        out[i] = in1[i]/in2[i];
+    }
+}
+
 //Performs element by element division of complex vectors and stores answer in numerator
-inline void divide_by_vec(std::complex<float> *numer, std::complex<float> *denom, std::complex<float> *out, int len) {
-	for (int i = 0; i < len; i++) {
-        out[i] = numer[i]/denom[i];
+void divide_by_vec(std::complex<float> *numer, std::complex<float> *denom, std::complex<float> *out, int len) {
+
+	for (int i = 0; i < len; i += 16) {
+        if (i + 16 < len) {
+            divide_16_elems(&numer[i], &denom[i], &out[i]);
+        } else {
+            for (int j = i, j < len; j++) {
+                out[i] = numer[i]/denom[i];
+            }
+        }
     }
 }
 
 //Performs element by element division of complex vectors and stores answer in numerator (uses AVX for SIMD)
-inline void divide_by_vec_avx(std::complex<float> *numer, std::complex<float> *denom, std::complex<float> *out, int len) {
+void divide_by_vec_avx(std::complex<float> *numer, std::complex<float> *denom, std::complex<float> *out, int len) {
     float num_real[8], num_imag[8], den_real[8], den_imag[8];
 
 	for (int i = 0; i < len; i += 8) {
@@ -263,13 +283,21 @@ inline void divide_by_vec_avx(std::complex<float> *numer, std::complex<float> *d
 }
 
 //Performs element by element multiplication of one complex vector and conjugate of another complex vector and stores answer in third vector
-inline void mult_by_conj(std::complex<float> *in_vec, std::complex<float> *conj_vec, std::complex<float> *out, int len) {
-	for (int i = 0; i < len; i++) {
-        out[i] = in_vec[i] * std::conj(conj_vec[i]);
+void mult_by_conj(std::complex<float> *in_vec, std::complex<float> *conj_vec, std::complex<float> *out, int len) {
+	for (int i = 0; i < len; i += 16) {
+        if (i + 16 < len) {
+            for (int j = 0; j < 16; j++) {
+                out[i + j] = in_vec[i + j] * std::conj(conj_vec[i + j]);
+            }
+        } else {
+            for (int j = i; j < len; j++) {
+                out[j] = in_vec[j] * std::conj(conj_vec[j]);
+            }
+        }
     }
 }
 
-inline void mult_by_conj_avx(std::complex<float> *in_vec, std::complex<float> *conj_vec, std::complex<float> *out, int len) {
+void mult_by_conj_avx(std::complex<float> *in_vec, std::complex<float> *conj_vec, std::complex<float> *out, int len) {
     float temp_real[8], temp_imag[8];
     for (int i = 0; i < len; i += 8) {
         if (i + 8 < len) {
@@ -280,7 +308,7 @@ inline void mult_by_conj_avx(std::complex<float> *in_vec, std::complex<float> *c
             __m256 out_r = _mm256_add_ps(_mm256_mul_ps(in_1_r, in_2_r), _mm256_mul_ps(in_1_i, in_2_i));
             __m256 out_i = _mm256_sub_ps(_mm256_mul_ps(in_2_r, in_1_i), _mm256_mul_ps(in_2_i, in_1_r));
             _mm256_store_ps(&temp_real[0], out_r);
-            _mm256_store_ps(&temp_imag[0], out_i);
+            _mm512_store_ps(&temp_imag[0], out_i);
             for (int j = 0; j < 8; j++) {
                 out[i + j] = std::complex<float>(temp_real[j], temp_imag[j]);
             }
@@ -293,8 +321,32 @@ inline void mult_by_conj_avx(std::complex<float> *in_vec, std::complex<float> *c
     }
 }
 
+void mult_by_conj_avx512(std::complex<float> *in_vec, std::complex<float> *conj_vec, std::complex<float> *out, int len) {
+    float temp_real[16], temp_imag[16];
+    for (int i = 0; i < len; i += 16) {
+        if (i + 16 < len) {
+            __m512 in_1_r = _mm512_set_ps(in_vec[i+15].real(), in_vec[i+14].real(), in_vec[i+13].real(), in_vec[i+12].real(), in_vec[i+11].real(), in_vec[i+10].real(), in_vec[i+9].real(), in_vec[i+8].real(), in_vec[i+7].real(), in_vec[i+6].real(), in_vec[i+5].real(), in_vec[i+4].real(), in_vec[i+3].real(), in_vec[i+2].real(), in_vec[i+1].real(), in_vec[i].real());
+            __m512 in_1_i = _mm512_set_ps(in_vec[i+15].imag(), in_vec[i+14].imag(), in_vec[i+13].imag(), in_vec[i+12].imag(), in_vec[i+11].imag(), in_vec[i+10].imag(), in_vec[i+9].imag(), in_vec[i+8].imag(), in_vec[i+7].imag(), in_vec[i+6].imag(), in_vec[i+5].imag(), in_vec[i+4].imag(), in_vec[i+3].imag(), in_vec[i+2].imag(), in_vec[i+1].imag(), in_vec[i].imag());
+            __m512 in_2_r = _mm512_set_ps(conj_vec[i+15].real(), conj_vec[i+14].real(), conj_vec[i+13].real(), conj_vec[i+12].real(), conj_vec[i+11].real(), conj_vec[i+10].real(), conj_vec[i+9].real(), conj_vec[i+8].real(), conj_vec[i+7].real(), conj_vec[i+6].real(), conj_vec[i+5].real(), conj_vec[i+4].real(), conj_vec[i+3].real(), conj_vec[i+2].real(), conj_vec[i+1].real(), conj_vec[i].real());
+            __m512 in_2_i = _mm512_set_ps(conj_vec[i+15].imag(), conj_vec[i+14].imag(), conj_vec[i+13].imag(), conj_vec[i+12].imag(), conj_vec[i+11].imag(), conj_vec[i+10].imag(), conj_vec[i+9].imag(), conj_vec[i+8].imag(), conj_vec[i+7].imag(), conj_vec[i+6].imag(), conj_vec[i+5].imag(), conj_vec[i+4].imag(), conj_vec[i+3].imag(), conj_vec[i+2].imag(), conj_vec[i+1].imag(), conj_vec[i].imag());
+            __m512 out_r = _mm512_add_ps(_mm512_mul_ps(in_1_r, in_2_r), _mm512_mul_ps(in_1_i, in_2_i));
+            __m512 out_i = _mm512_sub_ps(_mm512_mul_ps(in_2_r, in_1_i), _mm512_mul_ps(in_2_i, in_1_r));
+            _mm512_store_ps(&temp_real[0], out_r);
+            _mm512_store_ps(&temp_imag[0], out_i);
+            for (int j = 0; j < 16; j++) {
+                out[i + j] = std::complex<float>(temp_real[j], temp_imag[j]);
+            }
+        } else {
+            for (int j = i; j < len; j++) {
+                out[j] = in_vec[j] * std::conj(conj_vec[j]);
+            }
+            
+        }
+    }
+}
+
 //Finding maximum absolute value within vector
-inline float find_max_val(std::complex<float> *in_vec, int len, int threads) {
+float find_max_val(std::complex<float> *in_vec, int len, int threads) {
     std::vector<float> abs_vec(len);
     float temp_ret;
 
@@ -319,7 +371,7 @@ inline float find_max_val(std::complex<float> *in_vec, int len, int threads) {
 
 //Correlates one vector with cyclic shifts of another vector and gives output in a third vector.
 //Total number of cyclic shifts are given by num_cyclic_shifts value. This value should include the zero cyclic shift which is basically correlation with a non-roatated vector.
-inline void circ_correlate(std::complex<float> *in_vec, std::complex<float> *cyclic_shift_vec, std::complex<float> *out, int num_cyclic_shifts, int len) {
+void circ_correlate(std::complex<float> *in_vec, std::complex<float> *cyclic_shift_vec, std::complex<float> *out, int num_cyclic_shifts, int len) {
     //Performing correlation
     for (int i = 0; i < num_cyclic_shifts; i++) {
         for (int j = 0; j < len; j++) {
@@ -328,7 +380,7 @@ inline void circ_correlate(std::complex<float> *in_vec, std::complex<float> *cyc
     }
 }
 
-inline void circ_corr_fft(std::complex<float> *in_vec, std::complex<float> *cyclic_shift_vec, std::complex<float> *out, int len) {
+void circ_corr_fft(std::complex<float> *in_vec, std::complex<float> *cyclic_shift_vec, std::complex<float> *out, int len) {
     int new_len = len;
     std::vector<std::complex<float>> temp_in1, temp_in2, temp_out;
     if ((float)ceil(log2((float)len)) - (float)log2((float)len) > 0.001) {
@@ -350,7 +402,7 @@ inline void circ_corr_fft(std::complex<float> *in_vec, std::complex<float> *cycl
     }
 }
 
-inline void lin_corr_fft(std::complex<float> *in_vec1, std::complex<float> *in_vec2, std::complex<float> *out, int len1, int len2) {
+void lin_corr_fft(std::complex<float> *in_vec1, std::complex<float> *in_vec2, std::complex<float> *out, int len1, int len2) {
     int corr_len = len1 + len2 - 1;
     int new_len = corr_len;
     std::vector<std::complex<float>> temp_in1, temp_in2, temp_out;
@@ -376,7 +428,7 @@ inline void lin_corr_fft(std::complex<float> *in_vec1, std::complex<float> *in_v
 }
 
 //Takes input vector of length fft_size - 1 and creates OFDM symbol of length fft_size + prefix_size
-inline void create_ofdm_symbol(std::complex<float> *in_vec, std::complex<float> *out_vec, int fft_size, int prefix_size) {
+void create_ofdm_symbol(std::complex<float> *in_vec, std::complex<float> *out_vec, int fft_size, int prefix_size) {
     std::complex<float> *temp;
     temp = (std::complex<float> *)malloc((size_t)(fft_size * sizeof(std::complex<float>)));
     //Adding zero sub-carrier by copying input vector to temp vector
@@ -404,7 +456,7 @@ Creates a channel sounding frame of OFDM symbols for multiple transmit antennas 
 This function assumes both inputs are pointers to C++ STL vectors. 
 Also, there is an offset added of 'offset' number of samples before the OFDM symbols.
 */
-inline void create_ofdm_sounding_frame(std::vector<std::complex<float>> &pilot_vec, std::vector<std::vector<std::complex<float>>> &out_vec, int fft_size, int prefix_size, int num_tx_ants, int pre_offset, int post_offset, int num_reps, int num_threads) {
+void create_ofdm_sounding_frame(std::vector<std::complex<float>> &pilot_vec, std::vector<std::vector<std::complex<float>>> &out_vec, int fft_size, int prefix_size, int num_tx_ants, int pre_offset, int post_offset, int num_reps, int num_threads) {
     if (pilot_vec.size() != fft_size - 1) {
         std::cout << "Pilot vector size should be of the OFDM FFT size - 1";
         return;
@@ -477,7 +529,7 @@ inline void create_ofdm_sounding_frame(std::vector<std::complex<float>> &pilot_v
 
 }
 
-inline void demod_ofdm_symbol(std::complex<float> *in_vec, std::complex<float> *out_vec, int fft_size, int prefix_size) {
+void demod_ofdm_symbol(std::complex<float> *in_vec, std::complex<float> *out_vec, int fft_size, int prefix_size) {
     std::complex<float> *temp;
     temp = (std::complex<float> *)malloc((size_t)(fft_size * sizeof(std::complex<float>)));
 
@@ -496,7 +548,7 @@ inline void demod_ofdm_symbol(std::complex<float> *in_vec, std::complex<float> *
     free(temp);
 }
 
-inline void sound_frame(std::vector<std::complex<float>> &pilot_vec, std::vector<std::vector<std::complex<float>>> &in_vec, std::vector<std::vector<std::complex<float>>> &out_vec, int fft_size, int prefix_size, int num_syms, int num_rx_ants, int num_tx_ants, int num_threads) {
+void sound_frame(std::vector<std::complex<float>> &pilot_vec, std::vector<std::vector<std::complex<float>>> &in_vec, std::vector<std::vector<std::complex<float>>> &out_vec, int fft_size, int prefix_size, int num_syms, int num_rx_ants, int num_tx_ants, int num_threads) {
     //int num_syms = in_vec[0].size();
     //std::vector<int> fft_size_(num_threads, fft_size), prefix_size_(num_threads, prefix_size);
     out_vec.resize(in_vec.size());
@@ -572,7 +624,7 @@ inline void sound_frame(std::vector<std::complex<float>> &pilot_vec, std::vector
  * ******************************************************/
 
 
-inline void create_pn_seq_frame(std::vector<std::vector<int>> polys, std::vector<std::vector<std::complex<float>>> &out_vec, int num_tx_ants, int pre_ants, int total_tx_ants, float samp_rate, float max_frame_time, int num_threads) {
+void create_pn_seq_frame(std::vector<std::vector<int>> polys, std::vector<std::vector<std::complex<float>>> &out_vec, int num_tx_ants, int pre_ants, int total_tx_ants, float samp_rate, float max_frame_time, int num_threads) {
 
     std::vector<std::vector<int>> pn_seq(num_tx_ants);
     int pn_len = (int)pow(2, polys[0].size()-1) - 1;
@@ -632,7 +684,7 @@ inline void create_pn_seq_frame(std::vector<std::vector<int>> polys, std::vector
 
 }
 
-inline void sound_pn_frame(std::vector<std::vector<int>> polys, std::vector<std::vector<std::complex<float>>> &in_vec, std::vector<std::vector<std::complex<float>>> &out_vec, int total_tx_ants, int num_rx_ants, float samp_rate, float max_frame_time, int num_threads) {
+void sound_pn_frame(std::vector<std::vector<int>> polys, std::vector<std::vector<std::complex<float>>> &in_vec, std::vector<std::vector<std::complex<float>>> &out_vec, int total_tx_ants, int num_rx_ants, float samp_rate, float max_frame_time, int num_threads) {
     
     int pn_len = (int)pow(2, polys[0].size()-1) - 1;
     std::vector<std::vector<std::complex<float>>> pn_seq(total_tx_ants, std::vector<std::complex<float>>(pn_len));

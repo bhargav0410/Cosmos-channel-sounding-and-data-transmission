@@ -355,7 +355,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                         //omp_set_dynamic(0);
                         //omp_set_num_threads(num_threads - 1);
                         pn_start = clock();
-                        offset = find_pn_seq(&buff1[0][0], &pn_buff[0], buff1[0].size(), pn_buff.size(), thres, num_threads);
+                        offset = find_pn_seq(&buff1[0][0], &pn_buff[0], buff1[0].size(), pn_buff.size(), thres, 1);
                         pn_finish = clock();
                         std::cout << "Packet finding time: " << (float)(pn_finish - pn_start)/(float)CLOCKS_PER_SEC;
                         if (offset >= 0) {

@@ -11,6 +11,7 @@
 #include <random>
 #include "immintrin.h"
 //#include "chan_sounder.h"
+#include <omp.h>
 
 using namespace std::chrono;
 
@@ -64,7 +65,7 @@ int find_pn_seq(std::complex<float> *in_seq, int *pn_seq, int in_size, int pn_si
 }
 
 //FFT without any library
-inline void win_fft(std::complex<float> *fft_in, std::complex<float> *fft_out, int fft_size, int flag) __attribute__((optimize("-O3")));
+//inline void win_fft(std::complex<float> *fft_in, std::complex<float> *fft_out, int fft_size, int flag) __attribute__((optimize("-O3")));
 inline void win_fft(std::complex<float> *fft_in, std::complex<float> *fft_out, int fft_size, int flag) {
     if (fft_size == 1) {
         fft_out[0] = fft_in[0];
@@ -86,18 +87,22 @@ inline void win_fft(std::complex<float> *fft_in, std::complex<float> *fft_out, i
 }
 
 //Performs element by element multiplication of one complex vector and conjugate of another complex vector and stores answer in third vector
-inline void mult_by_conj(std::complex<float> *in_vec, std::complex<float> *conj_vec, std::complex<float> *out, int len) __attribute__((optimize("-O3")));
+
+//inline void mult_by_conj(std::complex<float> *in_vec, std::complex<float> *conj_vec, std::complex<float> *out, int len) __attribute__((optimize("-O3")));
 inline void mult_by_conj(std::complex<float> *in_vec, std::complex<float> *conj_vec, std::complex<float> *out, int len) {
+	//#pragma omp parallel for
 	for (int i = 0; i < len; i++) {
         out[i] = in_vec[i] * std::conj(conj_vec[i]);
     }
 }
 
-inline void mult_by_conj_avx(std::complex<float> *in_vec, std::complex<float> *conj_vec, std::complex<float> *out, int len) __attribute__((optimize("-O3")));
+//inline void mult_by_conj_avx(std::complex<float> *in_vec, std::complex<float> *conj_vec, std::complex<float> *out, int len) __attribute__((optimize("-O3")));
 inline void mult_by_conj_avx(std::complex<float> *in_vec, std::complex<float> *conj_vec, std::complex<float> *out, int len) {
     float temp_real[8], temp_imag[8];
     for (int i = 0; i < len; i += 8) {
-        if (i + 8 < len) {
+        if ((i + 8) < len) {
+			//std::cout << i << "\n";
+			//std::cout << "AVX...\n";
             __m256 in_1_r = _mm256_set_ps(in_vec[i+7].real(), in_vec[i+6].real(), in_vec[i+5].real(), in_vec[i+4].real(), in_vec[i+3].real(), in_vec[i+2].real(), in_vec[i+1].real(), in_vec[i].real());
             __m256 in_1_i = _mm256_set_ps(in_vec[i+7].imag(), in_vec[i+6].imag(), in_vec[i+5].imag(), in_vec[i+4].imag(), in_vec[i+3].imag(), in_vec[i+2].imag(), in_vec[i+1].imag(), in_vec[i].imag());
             __m256 in_2_r = _mm256_set_ps(conj_vec[i+7].real(), conj_vec[i+6].real(), conj_vec[i+5].real(), conj_vec[i+4].real(), conj_vec[i+3].real(), conj_vec[i+2].real(), conj_vec[i+1].real(), conj_vec[i].real());
@@ -110,6 +115,7 @@ inline void mult_by_conj_avx(std::complex<float> *in_vec, std::complex<float> *c
                 out[i + j] = std::complex<float>(temp_real[j], temp_imag[j]);
             }
         } else {
+			//std::cout << i << "No AVX...\n";
             for (int j = i; j < len; j++) {
                 out[j] = in_vec[j] * std::conj(conj_vec[j]);
             }
@@ -118,7 +124,7 @@ inline void mult_by_conj_avx(std::complex<float> *in_vec, std::complex<float> *c
     }
 }
 
-inline void lin_corr_fft(std::complex<float> *in_vec1, std::complex<float> *in_vec2, std::complex<float> *out, int len1, int len2, int threads) __attribute__((optimize("-O3")));
+//inline void lin_corr_fft(std::complex<float> *in_vec1, std::complex<float> *in_vec2, std::complex<float> *out, int len1, int len2, int threads) __attribute__((optimize("-O3")));
 inline void lin_corr_fft(std::complex<float> *in_vec1, std::complex<float> *in_vec2, std::complex<float> *out, int len1, int len2, int threads) {
     int corr_len = len1 + len2 - 1;
     int new_len = corr_len;
@@ -159,6 +165,49 @@ inline void lin_corr_fft(std::complex<float> *in_vec1, std::complex<float> *in_v
     //for (int i = 0; i < corr_len; i++) {
     //    out[i] = temp_out[i];
     //}
+
+}
+
+inline void lin_corr_fft_avx(std::complex<float> *in_vec1, std::complex<float> *in_vec2, std::complex<float> *out, int len1, int len2, int threads) {
+	int corr_len = len1 + len2 - 1;
+	int new_len = corr_len;
+	std::vector<std::complex<float>> temp_in1, temp_in2, temp_out;
+	if ((float)ceil(log2((float)corr_len)) - (float)log2((float)corr_len) > 0.001) {
+		new_len = (int)pow(2, (int)ceil(log2((float)corr_len)));
+	}
+	//std::cout << "New length: " << new_len << "\n";
+	temp_in1.resize(new_len, 0);
+	temp_in2.resize(new_len, 0);
+	temp_out.resize(new_len, 0);
+	memcpy((void *)&temp_in1[0], (const void *)&in_vec1[0], len1 * sizeof(std::complex<float>));
+	memcpy((void *)&temp_in2[0], (const void *)&in_vec2[0], len1 * sizeof(std::complex<float>));
+	//for (int i = 0; i < len1; i++) {
+	//    temp_in1[i] = in_vec1[i];
+   // }
+   // for (int i = 0; i < len2; i++) {
+   //     temp_in2[i] = in_vec2[i];
+   // }
+	win_fft(&temp_in1[0], &temp_in1[0], new_len, -1);
+	win_fft(&temp_in2[0], &temp_in2[0], new_len, -1);
+	//for (int i = 0; i < new_len; i++) {
+	//    temp_in1[i] = temp_in1[i]/std::complex<float>(new_len,0);
+	//    temp_in2[i] = temp_in2[i]/std::complex<float>(new_len,0);
+	//}
+	//std::cout << "FFT performed of inputs...\n";
+	mult_by_conj_avx(&temp_in1[0], &temp_in2[0], &temp_out[0], new_len);
+	//std::cout << "Multiplication with conjugate done...\n";
+	win_fft(&temp_out[0], &temp_out[0], new_len, 1);
+	for (int i = 0; i < new_len; i++) {
+		temp_out[i] = temp_out[i] / std::complex<float>(new_len, 0);
+	}
+	for (int i = 0; i < new_len; i++) {
+		temp_out[i] = temp_out[i] / std::complex<float>(len2, 0);
+	}
+	//std::cout << "IFFT performed...\n";
+	memcpy((void *)&out[0], (const void *)&temp_out[0], corr_len * sizeof(std::complex<float>));
+	//for (int i = 0; i < corr_len; i++) {
+	//    out[i] = temp_out[i];
+	//}
 
 }
 
@@ -249,7 +298,7 @@ void divide_by_vec_avx(std::complex<float> *numer, std::complex<float> *denom, s
 }
 
 
-int main(int argc, char *argv[]) __attribute__((optimize("-O3")));
+//int main(int argc, char *argv[]) __attribute__((optimize("-O3")));
 int main(int argc, char *argv[]) {
 
     duration<double> timediff;
@@ -305,9 +354,24 @@ int main(int argc, char *argv[]) {
     start = high_resolution_clock::now();
     divide_by_vec(&num_in[0], &den_in[0], &div_out1[0], pn_len);
     finish = high_resolution_clock::now();
-
-
     std::cout << "Divide by vector time: " << duration_cast<duration<double>>(finish - start).count() << "\n";
+
+	start = high_resolution_clock::now();
+#pragma omp parallel for
+	for (int i = 0; i < 100; i++) {
+		mult_by_conj_avx(&num_in[0], &den_in[0], &div_out1[0], pn_len);
+	}
+	finish = high_resolution_clock::now();
+	std::cout << "Multiply vector AVX time: " << duration_cast<duration<double>>(finish - start).count() << "\n";
+
+	start = high_resolution_clock::now();
+#pragma omp parallel for
+	for (int i = 0; i < 100; i++) {
+		mult_by_conj(&num_in[0], &den_in[0], &div_out1[0], pn_len);
+	}
+	finish = high_resolution_clock::now();
+	std::cout << "Multiply vector time: " << duration_cast<duration<double>>(finish - start).count() << "\n";
+
 
     /*
     start = high_resolution_clock::now();
@@ -357,12 +421,22 @@ int main(int argc, char *argv[]) {
     //Linear correlation test
     fft_in.resize(pn_len);
     start = high_resolution_clock::now();
+	#pragma omp parallel for
     for (int i = 0; i < 100; i++) {
         lin_corr_fft(&fft_in[0], &fft_in[0], &corr_out[0], pn_len, pn_len, 1);
     }
     finish = high_resolution_clock::now();
 
     std::cout << "FFT Linear corr time: " << duration_cast<duration<double>>(finish - start).count()/(double)100 << "\n";
+
+	start = high_resolution_clock::now();
+	#pragma omp parallel for
+	for (int i = 0; i < 100; i++) {
+		lin_corr_fft_avx(&fft_in[0], &fft_in[0], &corr_out[0], pn_len, pn_len, 1);
+	}
+	finish = high_resolution_clock::now();
+
+	std::cout << "FFT AVX Linear corr time: " << duration_cast<duration<double>>(finish - start).count() / (double)100 << "\n";
 /*
     for (int i = 0; i < corr_out.size(); i++) {
         if ((float)std::abs(corr_out[i]) < 0.5) {

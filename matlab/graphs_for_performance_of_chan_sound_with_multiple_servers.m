@@ -59,8 +59,8 @@ semilogy(NFFT, ((NFFT + 64).*16.*10 + 255)./20e6, 'x-.');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./5e6, '--');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./2e6, '--');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./1e6, '--');
-legend('Processing time (1 proc/server)','Processing time (4 proc/server)','Processing time (8 proc/server)','Processing time (12 proc/server)', ...
-    'Processing time (16 proc/server)','Processing time (20 proc/server)','Propagation time (10 MHz)','Propagation time (20 MHz)');
+legend('Processing time (1 cores/server)','Processing time (4 cores/server)','Processing time (8 cores/server)','Processing time (12 cores/server)', ...
+    'Processing time (16 cores/server)','Processing time (20 cores/server)','Propagation time (10 MHz)','Propagation time (20 MHz)');
 grid on;
 ylabel('Time');
 xlabel('FFT size');
@@ -73,8 +73,8 @@ semilogy(NFFT, ((NFFT + 64).*16.*10 + 255)./20e6, 'x-.');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./5e6, '--');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./2e6, '--');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./1e6, '--');
-legend('Processing time (1 proc/server)','Processing time (4 proc/server)','Processing time (8 proc/server)','Processing time (12 proc/server)', ...
-    'Processing time (16 proc/server)','Processing time (20 proc/server)','Propagation time (10 MHz)','Propagation time (20 MHz)');
+legend('Processing time (1 cores/server)','Processing time (4 cores/server)','Processing time (8 cores/server)','Processing time (12 cores/server)', ...
+    'Processing time (16 cores/server)','Processing time (20 cores/server)','Propagation time (10 MHz)','Propagation time (20 MHz)');
 grid on;
 ylabel('Time');
 xlabel('FFT size');
@@ -87,8 +87,8 @@ semilogy(NFFT, ((NFFT + 64).*16.*10 + 255)./20e6, 'x-.');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./5e6, '--');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./2e6, '--');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./1e6, '--');
-legend('Processing time (1 proc/server)','Processing time (4 proc/server)','Processing time (8 proc/server)','Processing time (12 proc/server)', ...
-    'Processing time (16 proc/server)','Processing time (20 proc/server)','Propagation time (10 MHz)','Propagation time (20 MHz)');
+legend('Processing time (1 cores/server)','Processing time (4 cores/server)','Processing time (8 cores/server)','Processing time (12 cores/server)', ...
+    'Processing time (16 cores/server)','Processing time (20 cores/server)','Propagation time (10 MHz)','Propagation time (20 MHz)');
 grid on;
 ylabel('Time');
 xlabel('FFT size');
@@ -101,8 +101,8 @@ semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./20e6, 'x-.');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./5e6, '--');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./2e6, '--');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./1e6, '--');
-legend('Processing time (1 proc/server)','Processing time (4 proc/server)','Processing time (8 proc/server)','Processing time (12 proc/server)', ...
-    'Processing time (16 proc/server)','Processing time (20 proc/server)','Propagation time (10 MHz)','Propagation time (20 MHz)');
+legend('Processing time (1 cores/server)','Processing time (4 cores/server)','Processing time (8 cores/server)','Processing time (12 cores/server)', ...
+    'Processing time (16 cores/server)','Processing time (20 cores/server)','Propagation time (10 MHz)','Propagation time (20 MHz)');
 grid on;
 ylabel('Time');
 xlabel('FFT size');
@@ -115,8 +115,8 @@ semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./20e6, 'x-.');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./5e6, '--');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./2e6, '--');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./1e6, '--');
-legend('Processing time (1 proc/server)','Processing time (4 proc/server)','Processing time (8 proc/server)','Processing time (12 proc/server)', ...
-    'Processing time (16 proc/server)','Processing time (20 proc/server)','Propagation time (10 MHz)','Propagation time (20 MHz)');
+legend('Processing time (1 cores/server)','Processing time (4 cores/server)','Processing time (8 cores/server)','Processing time (12 cores/server)', ...
+    'Processing time (16 cores/server)','Processing time (20 cores/server)','Propagation time (10 MHz)','Propagation time (20 MHz)');
 grid on;
 ylabel('Time');
 xlabel('FFT size');
@@ -129,8 +129,8 @@ semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./20e6, 'x-.');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./5e6, '--');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./2e6, '--');
 % semilogy(NFFT, ((NFFT + 64).*16.*100 + 255)./1e6, '--');
-legend('Processing time (1 proc/server)','Processing time (4 proc/server)','Processing time (8 proc/server)','Processing time (12 proc/server)', ...
-    'Processing time (16 proc/server)','Processing time (20 proc/server)','Propagation time (10 MHz)','Propagation time (20 MHz)');
+legend('Processing time (1 cores/server)','Processing time (4 cores/server)','Processing time (8 cores/server)','Processing time (12 cores/server)', ...
+    'Processing time (16 cores/server)','Processing time (20 cores/server)','Propagation time (10 MHz)','Propagation time (20 MHz)');
 grid on;
 ylabel('Time');
 xlabel('FFT size');

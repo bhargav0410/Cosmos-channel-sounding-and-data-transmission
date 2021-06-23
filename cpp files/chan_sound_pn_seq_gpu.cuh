@@ -16,11 +16,13 @@
 __global__ void correlate(cuFloatComplex *tx_array, cuFloatComplex *rx_array, cuFloatComplex *out_array, int thres, int num_rx_ants, int pn_len, int rx_arr_len_per_ant) {
 
     extern __shared__ cuFloatComplex temp[];
+	cuFloatComplex pn_len_c = make_cuFloatComplex((float)pn_len, 0);
 
     //Copying received data into shared memory by multiplying with the input PN sequence
     if (threadIdx.x + blockIdx.x + blockDim.x*blockIdx.y <= rx_arr_len_per_ant) {
         temp[threadIdx.x + pn_len*threadIdx.y] = cuCmulf(tx_array[threadIdx.x + blockDim.x*blockIdx.y], rx_array[threadIdx.x + blockIdx.x + blockDim.x*blockIdx.y + rx_arr_len_per_ant*blockIdx.z]);
-    }
+		temp[threadIdx.x + pn_len*threadIdx.y] = cuCdivf(temp[threadIdx.x + pn_len*threadIdx.y],pn_len_c);
+	}
     __syncthreads();
 
     //Array reduction of data present in shared memory
@@ -34,8 +36,8 @@ __global__ void correlate(cuFloatComplex *tx_array, cuFloatComplex *rx_array, cu
     float *imag_part = real_part + 1;
     //Reducing over multiple blocks
     if (threadIdx.x == 0) {
-        atomicAdd(real_part, cuCrealf(temp[threadIdx.x]));
-        atomicAdd(imag_part, cuCimagf(temp[threadIdx.x]));
+        atomicAdd(real_part, cuCrealf(temp[0]));
+        atomicAdd(imag_part, cuCimagf(temp[0]));
     }
 }
 
@@ -139,7 +141,7 @@ public:
         //Making sure output array is initialized to zero
         cudaMemset((void *)out_array, 0, (input_from_radio[0].size() + pn_length - 1)*num_rx_ants*num_tx_seqs*sizeof(*out_array));
 
-        cudaStream_t stream[1024];
+        cudaStream_t stream[1];
         for (int tx_stream = 0; tx_stream < num_tx_seqs; tx_stream++) {
             cudaStreamCreate(&stream[tx_stream]);
             //Performing correlation

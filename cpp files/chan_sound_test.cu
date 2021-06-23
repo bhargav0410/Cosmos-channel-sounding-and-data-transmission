@@ -7,11 +7,12 @@
 #include <iostream>
 
 int main(int argc, char *argv[]) {
-    std::string file;
-    int pn_length, num_tx_seqs, num_rx_ants;
+    std::string file = "PNSeq_255_MaxLenSeq.dat";
+    int pn_length = 255, num_tx_seqs = 1, num_rx_ants = 1;
 
     //Taking input arguments for PN sequence file and length and number of sequences
-    if (argc > 1) {
+    /*
+	if (argc > 1) {
         file = argv[1];
     }
     if (argc > 2) {
@@ -23,7 +24,7 @@ int main(int argc, char *argv[]) {
     if (argc > 4) {
         num_rx_ants = atoi(argv[4]);
     }
-
+	*/
     //Taking input sequences from file
     std::ifstream infile(file.c_str(), std::ifstream::binary);
     std::complex<float> *temp_arr;
@@ -56,6 +57,7 @@ int main(int argc, char *argv[]) {
     }
 
     //Printing the received and noisy signal
+	std::cout << "Received noisy signal...\n";
     for (int rx = 0; rx < num_rx_ants; rx++) {
         std::cout << "RX " << rx + 1 << "\n";
         for (int i = 0; i < pn_length; i++) {
@@ -75,6 +77,7 @@ int main(int argc, char *argv[]) {
     //Correlating with PN sequence
     pn_seq_gpu.correlate_with_pn_seq(rec_seq, out_array);
 
+	std::cout << "Correlation output...\n";
     //Showing output array
     for (int tx = 0; tx < num_tx_seqs; tx++) {
         std::cout << "TX " << tx + 1 << "\n";

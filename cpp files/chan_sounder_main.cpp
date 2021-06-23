@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
     std::cout << "Proc name: " << proc_name << "\n";
 
     int fft_size = 64, prefix_size = 16, num_ants = 4, num_rx_ants = 1, num_threads = 4, offset_ants = 0, num_reps = 10, num_times = 1;
-    float samp_rate = 20e6, sound_time = 1e-3;
+    float samp_rate = 20e6, sounding_time = 1e-3;
     high_resolution_clock::time_point start, finish;
 
     if (argc > 1) {
@@ -58,10 +58,10 @@ int main(int argc, char *argv[]) {
         num_times = atoi(argv[8]);
     }
     if (argc > 9) {
-        samp_rate = strtof(argv[9]);
+        samp_rate = strtof(argv[9], NULL);
     }
     if (argc > 10) {
-        sound_time = strtof(argv[10], NULL);
+        sounding_time = strtof(argv[10], NULL);
     }
 
     //chan_sounder chsdr(fft_size, prefix_size, 1, num_ants);
@@ -71,7 +71,7 @@ int main(int argc, char *argv[]) {
     polynomial[1] = {1,0,0,0,0,0,1,1,0,1,1};
     polynomial[2] = {1,0,0,0,0,1,0,0,1,1,1};
     polynomial[3] = {1,0,0,0,0,1,0,1,1,0,1};
-    std::vector<int> pn_seq = pn_seq_gen(&polynomial[0], pn_len);
+    std::vector<int> pn_seq = pn_seq_gen(polynomial[0], pn_len);
     std::vector<std::complex<float>> pn_comp(pn_len);
     for (int i = 0; i < pn_len; i++) {
         pn_comp[i] = std::complex<float>(pn_seq[i],0);
@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
 
 
     //Creating random BPSK pilots
-    /*
+    
     std::cout << "Starting OFDM sounding experiment...\n";
     for (int times = 0; times < num_times; times++) {
         srand(times);
@@ -144,14 +144,14 @@ int main(int argc, char *argv[]) {
     }
     std::cout << "OFDM sounding experiment done...\n";
     MPI_Barrier(MPI_COMM_WORLD);
-    */
-
+    
+   /*
     for (int times = 0; times < num_times; times++) {
         
 
         //std::cout << "Creating channel sounding frame...\n";
         start = high_resolution_clock::now();
-        create_pn_seq_frame(polynomial, out_vec, num_ants, 0, num_ants, samp_rate, sound_time, num_threads);
+        create_pn_seq_frame(polynomial, out_vec, num_ants, 0, num_ants, samp_rate, sounding_time, num_threads);
         finish = high_resolution_clock::now();
         create_time += duration_cast<duration<double>>(finish - start).count();
 
@@ -174,7 +174,7 @@ int main(int argc, char *argv[]) {
 
         //std::cout << "Performing channel sounding...\n";
         start = high_resolution_clock::now();
-        sound_pn_frame(polynomial, chan_vec, demod_vec, num_ants, num_rx_ants, samp_rate, sound_time, num_threads);
+        sound_pn_frame(polynomial, chan_vec, demod_vec, num_ants, num_rx_ants, samp_rate, sounding_time, num_threads);
         for (int i = displ[grank]; i < size_of_proc_data[grank]; i++) {
             for (int j = 0; j < demod_vec[0].size(); j++) {
                 global_demod_vec[i*(demod_vec[0].size()) + j] = demod_vec[i][j];
@@ -209,6 +209,7 @@ int main(int argc, char *argv[]) {
         }
     }
     std::cout << "\n";
+    */
 
     /*
     if (grank == 0) {
@@ -263,7 +264,7 @@ int main(int argc, char *argv[]) {
     double global_create_time, global_sound_time;
     MPI_Reduce(&create_time, &global_create_time, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&sound_time, &global_sound_time, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&err, &global_err, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+    //MPI_Reduce(&err, &global_err, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
 
     //std::cout << "Rank " << grank << " Mean processing error: " << err << "\n";
     if (grank == 0) {
@@ -273,6 +274,7 @@ int main(int argc, char *argv[]) {
         //std::cout << "Rank " << grank << " Mean processing error: " << (double)global_err << "\n";
         //std::cout << "Rank " << grank << " Mean processing phase error: " << (double)phase_err << " degrees\n"; 
     }
+    free(proc_name);
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
     //return 0;
